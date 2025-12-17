@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product{
+   id  Int   @id @default(autoincrement())     //@colname shows it chosen as PK
+   name String
+   description String?         //? denotes it optional
+   imageURL String?
+   createdAt DateTime   @default(now())
+
+   //one-to-many relationship
+  listings StoreListing[]     //virtual part--- "magic helper" for your JavaScript code so you can type product.listings and get an array
+
+}
+
+model StoreListing{
+  id Int  @id @default(autoincrement())
+  store String
+  url String
+  productId Int
+  product Product @relation(fields: [productId],references: [id])  //active part-- @relation used for FK here Product is the name of table whose id col is pointed by productid col of StoreListing
+
+//one to many relationship
+  history PriceSnapshot[]
+}
+
+model PriceSnapshot{
+  id Int @id @default(autoincrement())
+  price Int
+  scrapedAt DateTime @default(now())
+  listingId Int
+  listing StoreListing @relation(fields: [listingId],references: [id])
+}
+
