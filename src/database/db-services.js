@@ -45,4 +45,38 @@ async function saveScrapedPrice(url,store,data){
       return snapshot;
 
 }
-module.exports= {saveScrapedPrice,prisma};
+async function createTrackedProduct(productName, amazonUrl, flipkartUrl) {
+    return await prisma.$transaction(async (tx) => {
+        
+        const newProduct = await tx.product.create({
+            data: {
+                name: productName,
+                description: "Comparison Group",
+                imageURL: "https://via.placeholder.com/150",
+            }
+        });
+
+        if (amazonUrl) {
+            await tx.storeListing.create({
+                data: {
+                    store: "AMAZON",
+                    url: amazonUrl,
+                    productId: newProduct.id 
+                }
+            });
+        }
+
+        if (flipkartUrl) {
+            await tx.storeListing.create({
+                data: {
+                    store: "FLIPKART",
+                    url: flipkartUrl,
+                    productId: newProduct.id 
+                }
+            });
+        }
+
+        return newProduct;
+    });
+}
+module.exports= {saveScrapedPrice,prisma,createTrackedProduct};
