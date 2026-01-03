@@ -6,14 +6,14 @@ puppeteer.use(StealthPlugin());
 async function scrapeAmazonProd(url){
     console.log("initiating...");
     let browser= null;
-     
+     let page= null;
     try{
      browser= await puppeteer.launch({
         headless: "new",
         // slowMo: 100,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
-    const page= await browser.newPage();
+     page= await browser.newPage();
 
     await page.setViewport({ width: 1920, height: 1080 });
     //const amazonUrl = 'https://www.amazon.in/dp/B0FZT1LXPZ/?_encoding=UTF8&ref_=cct_cg_Budget_2a1&pf_rd_p=e375775e-f345-480d-adaf-5496c142308d&pf_rd_r=TSWS6SRPESSYDB9ZBC1V&th=1';
@@ -63,7 +63,14 @@ async function scrapeAmazonProd(url){
     return data;
 } catch(err){
     console.error("module error: ",err.message);
-    if(browser) await browser.close();
+    if (page) {
+        const screenshotPath = `error_amazon_${Date.now()}.png`;
+        await page.screenshot({ path: screenshotPath });
+        console.log(` Error screenshot saved to: ${screenshotPath}`);
+    }
+  
+
+    if (browser) await browser.close();
     return null;
 }
 }
