@@ -15,17 +15,12 @@ const SELECTORS = {
         title: ["span.B_NuCI"]
     }
 };
-async function scrapeFlipkartProd(url){
+async function scrapeFlipkartProd(url,browserInstance){
     console.log("initiating...");
-    let browser= null;
-     
+     let page= null;
     try{
-     browser= await puppeteer.launch({
-        headless: "new",
-        // slowMo: 100,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1366,768']
-    });
-    const page= await browser.newPage();
+     
+     page= await browserInstance.newPage();
 
     await page.setViewport({ width: 1366, height: 768 });
     //const amazonUrl = 'https://www.amazon.in/dp/B0FZT1LXPZ/?_encoding=UTF8&ref_=cct_cg_Budget_2a1&pf_rd_p=e375775e-f345-480d-adaf-5496c142308d&pf_rd_r=TSWS6SRPESSYDB9ZBC1V&th=1';
@@ -74,7 +69,7 @@ async function scrapeFlipkartProd(url){
     console.error("module error: ",err.message);
     return null;
 } finally{
-    if(browser) await browser.close();
+    if(page) await page.close();
 
 }
 }

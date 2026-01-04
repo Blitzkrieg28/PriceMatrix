@@ -1,10 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const { prisma, createTrackedProduct } = require('./database/db-services');
-
+const {startWorker}= require('./workers/priceWorker');
 const app = express();
 const PORT = 3000;
 
+require('./cron');
 app.use(cors());
 app.use(express.json()); 
 
@@ -17,7 +18,7 @@ app.post('/api/track', async (req, res) => {
             return res.status(400).json({ error: "Name and Amazon URL are required." });
         }
 
-        console.log(`🌐 API: Request to track "${name}"`);
+        console.log(` API: Request to track "${name}"`);
 
         const result = await createTrackedProduct(name, amazonUrl, flipkartUrl);
 
@@ -79,4 +80,8 @@ app.get('/api/history/:id', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`API Server running on http://localhost:${PORT}`);
+});
+
+startWorker().catch(err => {
+    console.error(" Failed to start worker:", err);
 });

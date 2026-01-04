@@ -3,17 +3,13 @@ const StealthPlugin=  require('puppeteer-extra-plugin-stealth');
 
 puppeteer.use(StealthPlugin());
 
-async function scrapeAmazonProd(url){
+async function scrapeAmazonProd(url,browserInstance){
     console.log("initiating...");
-    let browser= null;
+    
      let page= null;
     try{
-     browser= await puppeteer.launch({
-        headless: "new",
-        // slowMo: 100,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-     page= await browser.newPage();
+     
+     page= await browserInstance.newPage();
 
     await page.setViewport({ width: 1920, height: 1080 });
     //const amazonUrl = 'https://www.amazon.in/dp/B0FZT1LXPZ/?_encoding=UTF8&ref_=cct_cg_Budget_2a1&pf_rd_p=e375775e-f345-480d-adaf-5496c142308d&pf_rd_r=TSWS6SRPESSYDB9ZBC1V&th=1';
@@ -21,6 +17,16 @@ async function scrapeAmazonProd(url){
     console.log("navigating to the page..");
     await page.goto(url, { waitUntil: 'domcontentloaded',timeout: 30000 });
 
+    const isErrorPage = await page.evaluate(() => {
+        const heading = document.querySelector('body');
+        return heading && heading.innerText.includes("The Web address you entered is not a functioning page");
+    });
+
+    if (isErrorPage) {
+        console.error(" Amazon 404: The link is broken or redirected to an error page.");
+        await page.close();
+        return null;
+    }
     const pageTitle= await page.title();
     if (pageTitle.includes("Amazon")) {
         console.log(" Soft block detected! Attempting to bypass...");
@@ -59,7 +65,7 @@ async function scrapeAmazonProd(url){
         scrapedAt: new Date().toISOString()
       };
         });
-    await browser.close();
+    await page.close();
     return data;
 } catch(err){
     console.error("module error: ",err.message);
@@ -70,7 +76,7 @@ async function scrapeAmazonProd(url){
     }
   
 
-    if (browser) await browser.close();
+    if (page) await page.close();
     return null;
 }
 }

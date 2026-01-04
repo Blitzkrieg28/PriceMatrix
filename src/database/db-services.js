@@ -1,57 +1,35 @@
-const {PrismaClient}= require('@prisma/client');
-const prisma= new PrismaClient();
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
+async function addPriceHistory(url, store, data) {
+    const { price, available } = data;
 
-async function saveScrapedPrice(url,store,data){
-    const {title,price}= data;
-
-    console.log(`processing ${title.substring(0,40)}`);
-    let listing= await prisma.storeListing.findFirst({
-        where: {url: url},
-        include: {product: true}
+    const listing = await prisma.storeListing.findFirst({
+        where: { url: url }
     });
 
-    if(listing){
-        console.log(`found existing product with id: ${listing.product.id}`);
-    }
-    else{
-        console.log("new product detected!");
-        const newProduct= await prisma.product.create({
-            data: {
-                name: title,
-                description: "tracked via pricematrix",
-                imageURL: "#",
-                
-                listings: {
-                    create: {
-                        store: store,
-                        url: url
-                    }
-                }
-            },
-            include: {listings: true}
-        });
-        listing= newProduct.listings[0];
+    if (!listing) {
+        console.error(`Error: Worker tried to update unknown URL: ${url}`);
+        return null;
     }
 
     const snapshot = await prisma.priceSnapshot.create({
         data: {
-          listingId: listing.id,
-          price: price           
+            listingId: listing.id,
+            price: price
         }
-      });
-    
-      console.log(`Snapshot Saved! ID: ${snapshot.id} | Price: ₹${snapshot.price}`);
-      return snapshot;
+    });
 
+    console.log(`Snapshot Added: ID ${listing.productId} | ₹${price}`);
+    return snapshot;
 }
-async function createTrackedProduct(productName, amazonUrl, flipkartUrl) {
+
+async function createTrackedProduct(name, amazonUrl, flipkartUrl) {
     return await prisma.$transaction(async (tx) => {
-        
         const newProduct = await tx.product.create({
             data: {
-                name: productName,
-                description: "Comparison Group",
+                name: name,
+                description: "Tracked via PriceMatrix",
                 imageURL: "https://via.placeholder.com/150",
             }
         });
@@ -61,7 +39,7 @@ async function createTrackedProduct(productName, amazonUrl, flipkartUrl) {
                 data: {
                     store: "AMAZON",
                     url: amazonUrl,
-                    productId: newProduct.id 
+                    productId: newProduct.id
                 }
             });
         }
@@ -71,7 +49,7 @@ async function createTrackedProduct(productName, amazonUrl, flipkartUrl) {
                 data: {
                     store: "FLIPKART",
                     url: flipkartUrl,
-                    productId: newProduct.id 
+                    productId: newProduct.id
                 }
             });
         }
@@ -79,4 +57,9 @@ async function createTrackedProduct(productName, amazonUrl, flipkartUrl) {
         return newProduct;
     });
 }
-module.exports= {saveScrapedPrice,prisma,createTrackedProduct};
+
+module.exports = { 
+    prisma, 
+    addPriceHistory,    
+    createTrackedProduct 
+};
