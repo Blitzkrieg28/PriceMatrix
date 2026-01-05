@@ -1,0 +1,30 @@
+version: '3.8'  # The version of the Docker Compose syntax we are using
+
+services:       # The list of "machines" (containers) we want to spin up
+
+  # SERVICE 1: THE REDIS DATABASE
+  redis:
+    image: redis:alpine             # 1. The Blueprint. 'alpine' is a tiny, lightweight Linux version.
+    container_name: pricematrix-redis # 2. A friendly name so we can find it easily later.
+    ports:
+      - "6379:6379"                 # 3. The Bridge. Map Host Port 6379 -> Container Port 6379.
+    command: redis-server --appendonly yes # 4. Enable persistence. If container restarts, data isn't lost.
+    restart: always                 # 5. Resilience. If it crashes, Docker restarts it automatically.
+    volumes:
+      - redis_data:/data            # 6. Storage. Save the data to a virtual drive so it persists after reboot.
+
+  # SERVICE 2: REDIS COMMANDER (Optional GUI)
+  # This is a web interface to SEE what is inside your Redis.
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-gui
+    environment:
+      - REDIS_HOSTS=local:redis:6379 # Tell the GUI where the Redis service is.
+    ports:
+      - "8081:8081"                  # Map Host Port 8081 -> Container Port 8081.
+    depends_on:
+      - redis                        # Start this ONLY after Redis is running.
+
+# Define the volume (Virtual Hard Drive) for persistence
+volumes:
+  redis_data:

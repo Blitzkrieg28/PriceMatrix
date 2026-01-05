@@ -1,14 +1,18 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http'); 
 const { prisma, createTrackedProduct } = require('./database/db-services');
 const {startWorker}= require('./workers/priceWorker');
+const { init } = require('./utils/socket'); 
 const app = express();
+const server = http.createServer(app); 
+
 const PORT = 3000;
 
 require('./cron');
 app.use(cors());
 app.use(express.json()); 
-
+init(server);
 
 app.post('/api/track', async (req, res) => {
     try {
@@ -78,7 +82,7 @@ app.get('/api/history/:id', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`API Server running on http://localhost:${PORT}`);
 });
 

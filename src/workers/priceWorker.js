@@ -4,6 +4,7 @@ const { Worker, connection } = require('../queues/config');
 const { scrapeAmazonProd } = require('../scrapers/amazon');
 const { scrapeFlipkartProd } = require('../scrapers/flipkart');
 const { addPriceHistory } = require('../database/db-services'); 
+const { broadcastLog } = require('../utils/socket'); 
 
 puppeteer.use(StealthPlugin());
 
@@ -12,7 +13,6 @@ let browser = null;
 async function startWorker() {
     console.log("Worker System: Launching Singleton Browser...");
     
-   
     browser = await puppeteer.launch({
         headless: "new",
         args: [
@@ -25,7 +25,10 @@ async function startWorker() {
 
     const worker = new Worker('price-updates', async (job) => {
         const { url, store, productId } = job.data;
-        console.log(`[Job ${job.id}] Processing: ${store} - ${url}`);
+        
+        const startMsg = `Processing Job #${job.id}: ${store} Scraping Started...`;
+        console.log(`[Job ${job.id}] ${startMsg}`);
+        broadcastLog(startMsg, 'info');
 
         let data = null;
 
@@ -37,15 +40,19 @@ async function startWorker() {
             }
 
             if (data) {
-      
-             await addPriceHistory(url, store, data); 
-                console.log(`[Job ${job.id}] Updated Product #${productId} to ₹${data.price}`);
+                await addPriceHistory(url, store, data); 
+                
+                const successMsg = `[${store}] Updated: ${data.title.substring(0, 20)}... | ₹${data.price}`;
+                console.log(successMsg);
+                broadcastLog(successMsg, 'success'); 
             } else {
                 throw new Error("Scraper returned null data");
             }
 
         } catch (err) {
-            console.error(`[Job ${job.id}] Failed: ${err.message}`);
+            const errorMsg = `Job #${job.id} Failed: ${err.message}`;
+            console.error(errorMsg);
+            broadcastLog(errorMsg, 'error'); 
             throw err;
         }
 
