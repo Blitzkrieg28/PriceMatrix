@@ -4,7 +4,6 @@ const { Worker, connection } = require('../queues/config');
 const { scrapeAmazonProd } = require('../scrapers/amazon');
 const { scrapeFlipkartProd } = require('../scrapers/flipkart');
 const { addPriceHistory } = require('../database/db-services'); 
-const { broadcastLog } = require('../utils/socket'); 
 
 puppeteer.use(StealthPlugin());
 
@@ -15,58 +14,42 @@ async function startWorker() {
     
     browser = await puppeteer.launch({
         headless: "new",
-        args: [
-            '--no-sandbox', 
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu'
-        ]
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
     });
 
     const worker = new Worker('price-updates', async (job) => {
-        const { url, store, productId } = job.data;
-        
-        const startMsg = `Processing Job #${job.id}: ${store} Scraping Started...`;
-        console.log(`[Job ${job.id}] ${startMsg}`);
-        broadcastLog(startMsg, 'info');
+        const { url, store } = job.data;
+        console.log(`[Job ${job.id}] Processing ${store}...`);
 
         let data = null;
-
         try {
-            if (store === 'AMAZON') {
-                data = await scrapeAmazonProd(url, browser);
-            } else if (store === 'FLIPKART') {
-                data = await scrapeFlipkartProd(url, browser);
-            }
+            if (store === 'AMAZON') data = await scrapeAmazonProd(url, browser);
+            else if (store === 'FLIPKART') data = await scrapeFlipkartProd(url, browser);
 
             if (data) {
                 await addPriceHistory(url, store, data); 
-                
-                const successMsg = `[${store}] Updated: ${data.title.substring(0, 20)}... | ₹${data.price}`;
-                console.log(successMsg);
-                broadcastLog(successMsg, 'success'); 
-            } else {
-                throw new Error("Scraper returned null data");
-            }
+                console.log(`[${store}] Scrape Success: ₹${data.price}`);
 
+                
+                return {
+                    store: store,
+                    price: data.price,
+                    title: data.title || "Product"
+                };
+            }
         } catch (err) {
-            const errorMsg = `Job #${job.id} Failed: ${err.message}`;
-            console.error(errorMsg);
-            broadcastLog(errorMsg, 'error'); 
+            console.error(`Job ${job.id} Failed: ${err.message}`);
             throw err;
         }
-
+        
+        
         await new Promise(r => setTimeout(r, 2000));
 
-    }, { 
-        connection, 
-        concurrency: 1 
-    });
+    }, { connection, concurrency: 1 });
 
-    console.log("Price Worker is online and waiting for jobs...");
+    console.log("Worker is listening for jobs...");
 
     process.on('SIGINT', async () => {
-        console.log("Closing browser...");
         if (browser) await browser.close();
         process.exit(0);
     });
