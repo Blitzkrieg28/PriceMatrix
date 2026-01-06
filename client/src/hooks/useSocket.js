@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
-const SERVER_URL = "http://localhost:3000"; 
+const SERVER_URL = process.env.REACT_APP_API_URL|| "http://localhost:3000"; 
 
 export const useSocket = () => {
     const [logs, setLogs] = useState([]);

@@ -14,7 +14,14 @@ async function startWorker() {
     
     browser = await puppeteer.launch({
         headless: "new",
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+      
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox', 
+            '--disable-dev-shm-usage', 
+            '--disable-gpu'
+        ]
     });
 
     const worker = new Worker('price-updates', async (job) => {
@@ -30,7 +37,6 @@ async function startWorker() {
                 await addPriceHistory(url, store, data); 
                 console.log(`[${store}] Scrape Success: ₹${data.price}`);
 
-                
                 return {
                     store: store,
                     price: data.price,
@@ -41,7 +47,6 @@ async function startWorker() {
             console.error(`Job ${job.id} Failed: ${err.message}`);
             throw err;
         }
-        
         
         await new Promise(r => setTimeout(r, 2000));
 

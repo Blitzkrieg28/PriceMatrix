@@ -1,3 +1,4 @@
+require('dotenv').config(); 
 const express = require('express');
 const cors = require('cors');
 const http = require('http'); 
@@ -10,17 +11,33 @@ const redis = require('./utils/redis');
 
 const app = express();
 const server = http.createServer(app); 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// CONSTANTS
 const LOG_KEY = 'app_logs'; 
 const MAX_LOGS = 50;        
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3001";
 
-require('./cron');
-app.use(cors());
+app.use(cors({
+    origin: FRONTEND_URL,
+    credentials: true
+}));
 app.use(express.json()); 
 
-init(server);
+const io = init(server);
+
+io.on('connection', async (socket) => {
+    console.log(`New Client Connected (ID: ${socket.id})`);
+    
+    try {
+        const rawLogs = await redis.lrange(LOG_KEY, 0, -1);
+        const parsedLogs = rawLogs.map(log => JSON.parse(log));
+        socket.emit('log_history', parsedLogs);
+    } catch (err) {
+        console.error("Error fetching logs for new client:", err);
+    }
+});
+
+require('./cron');
 
 // --- ROUTES ---
 
@@ -33,7 +50,6 @@ app.post('/api/track', async (req, res) => {
 
         const result = await createTrackedProduct(name, amazonUrl || null, flipkartUrl || null);
 
-        // Trigger Scrape
         const listings = await prisma.storeListing.findMany({ where: { productId: result.id } });
         if (listings.length > 0) {
             const jobs = listings.map(item => ({
@@ -54,7 +70,7 @@ app.post('/api/track', async (req, res) => {
 app.delete('/api/products/:id', async (req, res) => {
     try {
         const productId = parseInt(req.params.id);
-        console.log(` Deleting Product ID: ${productId}`);
+        console.log(`Deleting Product ID: ${productId}`);
 
         await prisma.$transaction(async (tx) => {
             const listings = await tx.storeListing.findMany({ where: { productId } });
@@ -91,6 +107,7 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
+// --- WORKER EVENT LISTENERS ---
 
 const queueEvents = new QueueEvents('price-updates', { connection });
 
@@ -102,8 +119,7 @@ const broadcast = async (type, msg) => {
         msg 
     };
     
-    const io = getIO();
-    if (io) io.emit('log', logEntry);
+    io.emit('log', logEntry);
 
     try {
         await redis.lpush(LOG_KEY, JSON.stringify(logEntry)); 
@@ -131,27 +147,10 @@ queueEvents.on('failed', ({ jobId, failedReason }) => {
     broadcast('ERROR', `Job #${jobId} Failed: ${failedReason}`);
 });
 
-const attachHistory = setInterval(() => {
-    const io = getIO();
-    if (io) {
-        clearInterval(attachHistory);
-        io.on('connection', async (socket) => {
-            console.log("New Client Connected, sending history...");
-            try {
-                const rawLogs = await redis.lrange(LOG_KEY, 0, -1);
-                const parsedLogs = rawLogs.map(log => JSON.parse(log));
-                
-                socket.emit('log_history', parsedLogs);
-            } catch (err) {
-                console.error("Error fetching logs for new client:", err);
-            }
-        });
-    }
-}, 500);
-
-//broadcast('INFO', 'Server restarted. Redis logging system active.');
+// --- START SERVER ---
 server.listen(PORT, () => {
     console.log(`API Server running on http://localhost:${PORT}`);
+    console.log(`CORS allowed for: ${FRONTEND_URL}`);
 });
 
 startWorker().catch(err => console.error(err));

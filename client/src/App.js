@@ -6,6 +6,10 @@ import { Plus, X, ExternalLink, ChevronDown, ChevronUp, Terminal, Trash2 } from 
 import { useSocket } from './hooks/useSocket'; 
 import './App.css';
 
+// --- CONFIG ---
+// Use the same environment variable strategy as useSocket.js
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3000";
+
 // --- HELPERS ---
 const transformData = (backendProduct) => {
     if (!backendProduct.listings || backendProduct.listings.length === 0) return [];
@@ -42,12 +46,15 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   
   const [showLogs, setShowLogs] = useState(true);
+  
+  // Import the socket hook
   const { logs, isConnected } = useSocket();
 
   // FETCH DATA
   const fetchProducts = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/api/products');
+      // Use the dynamic API_BASE_URL
+      const res = await axios.get(`${API_BASE_URL}/api/products`);
 
       const formattedProducts = res.data.map(p => {
         const amazonListing = p.listings.find(l => l.store === 'AMAZON');
@@ -93,10 +100,16 @@ export default function App() {
     }
   };
 
-  // ✅ LOG LISTENER
+  // ✅ LOG LISTENER (Fixed for Array Order)
   useEffect(() => {
-    const latestLog = logs[logs.length - 1];
+    // In useSocket, we do [newLog, ...prev], so the NEWEST log is at index 0
+    const latestLog = logs[0]; 
+
     if (latestLog && latestLog.type === 'SUCCESS') {
+        // Prevent refetching on the initial "Connected to Server" message
+        // unless you specifically want to. 
+        if (latestLog.msg === "Connected to Server") return;
+
         console.log("♻️ Price update detected! Refreshing graph...");
         fetchProducts();
     }
@@ -131,7 +144,7 @@ export default function App() {
         flipkartUrl: formData.get('flipkartUrl')
     };
     try {
-        await axios.post('http://localhost:3000/api/track', payload);
+        await axios.post(`${API_BASE_URL}/api/track`, payload);
         fetchProducts(); 
         handleClose();
     } catch (err) {
@@ -139,11 +152,10 @@ export default function App() {
     }
   };
 
-  // ✅ NEW DELETE HANDLER
   const handleDelete = async (id, name) => {
     if(!window.confirm(`Are you sure you want to stop tracking "${name}"?`)) return;
     try {
-        await axios.delete(`http://localhost:3000/api/products/${id}`);
+        await axios.delete(`${API_BASE_URL}/api/products/${id}`);
         // Optimistic UI Update
         setProducts(prev => prev.filter(p => p.id !== id));
         if (selectedProduct?.id === id) handleClose();
@@ -240,7 +252,6 @@ export default function App() {
                     <div className="card-info">
                       <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
                         <h3>{product.name}</h3>
-                        {/* 🗑️ DELETE BUTTON ADDED HERE */}
                         <button 
                             className="btn-delete"
                             onClick={(e) => {

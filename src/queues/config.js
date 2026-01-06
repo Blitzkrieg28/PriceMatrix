@@ -1,13 +1,17 @@
 const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
 
+// 1. Get URL from .env (fallback to localhost for safety)
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
-const connection = new IORedis({
-    host: 'localhost', 
-    port: 6379, 
-    maxRetriesPerRequest: null,
+// 2. Create Connection with logic for Upstash (TLS)
+const connection = new IORedis(REDIS_URL, {
+    maxRetriesPerRequest: null, // Required by BullMQ
+    // If the URL starts with 'rediss://', enable TLS options
+    tls: REDIS_URL.startsWith('rediss://') ? {
+        rejectUnauthorized: false // Helps prevent SSL errors with some cloud providers
+    } : undefined
 });
-
 
 const priceQueue = new Queue('price-updates', { 
     connection,
