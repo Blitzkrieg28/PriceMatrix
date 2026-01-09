@@ -7,9 +7,7 @@ node_modules
 .env.test.local
 .env.production.local
 
-*.png
-*.jpg
-*.jpeg
+
 *.pdf
 user_data/
 
