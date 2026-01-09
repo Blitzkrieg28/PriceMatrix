@@ -52,7 +52,9 @@ The system follows an **Event-Driven Architecture** where the "Brain" (API) is d
 
 The core scraping logic follows a strict **Extract-Transform-Load (ETL)** process to ensure data integrity.
 
-![ETL Pipeline Diagram](./assets/ETL-Pipeline-final%20(2).png)
+<p align="center">
+  <img src="./assets/ETL-Pipeline-final (2).png" width="80%" alt="ETL Pipeline">
+</p>
 
 1.  **Extract:** Headless Chrome navigates to the target URL and extracts the raw DOM elements.
 2.  **Transform:**
@@ -68,9 +70,12 @@ The core scraping logic follows a strict **Extract-Transform-Load (ETL)** proces
 
 The database is normalized to support **One-to-Many** relationships, allowing a single generic product (e.g., "iPhone 13") to have multiple store listings (Amazon, Flipkart).
 
-![ER Diagram](./assets/erdiag.png)
+<p align="center">
+  <img src="./assets/erdiag.png" width="60%" alt="Database Schema">
+</p>
 
 ---
+
 ###  Key Features
 * **Stealth Scraping Engine:** Bypasses anti-bot protections using Puppeteer with stealth plugins and randomized User-Agents.
 * **Real-Time Feedback Loop:** Uses **Socket.io** to push instant price updates to the frontend the millisecond a job completes.
